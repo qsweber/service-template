@@ -55,9 +55,9 @@ jobs:
         with:
           name: dev_package
           # path: dev_package.zip # auto unzips :(
-      - run: ls -R
-      - run: zip -r dev_package_2.zip dev_package.zip
-      - run: poetry run zappa update dev --zip dev_package_2.zip
+      - run: ls -al dev_package.zip
+      # - run: zip -r dev_package_2.zip dev_package.zip
+      - run: poetry run zappa update dev --zip dev_package.zip -s zappa_settings.json
   release:
     needs: [deploy_dev]
     runs-on: ubuntu-latest
