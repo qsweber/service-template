@@ -54,7 +54,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: dev_package
-          # path: dev_package # auto unzips :(
+          path: dev_package.zip # auto unzips :(
       - run: zip -r dev_package_2.zip dev_package.zip
       - run: poetry run zappa update dev --zip dev_package_2.zip
   release:
