@@ -6,10 +6,10 @@ on:
   pull_request:
     branches: [master]
   schedule:
-    - cron: '45 21 * * 5'
+    - cron: '45 21 * * 4'
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     env:
       STAGE: TEST
@@ -27,11 +27,27 @@ jobs:
       - run: poetry run flake8
       - run: poetry run mypy src/service_template --strict --txt-report .mypy && cat .mypy/index.txt
       - run: sh check_contains_template.sh
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - uses: snok/install-poetry@v1
+      - run: poetry install --only main
+      - run: cd src && poetry run zappa package dev -s ../zappa_settings.json -o ../dev_package.zip && cd ..
+      - uses: actions/upload-artifact@v2
+        with:
+          name: dev_package
+          path: dev_package.zip
+      - run: cd src && poetry run zappa package production -s ../zappa_settings.json -o ../production_package.zip && cd ..
+      - uses: actions/upload-artifact@v2
+        with:
+          name: production_package
+          path: production_package.zip
   deploy:
-    needs: [build]
+    needs: [test, build]
     runs-on: ubuntu-latest
     env:
-      STAGE: test
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-west-2
@@ -40,9 +56,38 @@ jobs:
       - uses: actions/setup-python@v4
       - uses: snok/install-poetry@v1
       - run: poetry install --only main
-      - run: cd src && poetry run zappa package dev -s ../zappa_settings.json && cd ..
-      - run: cd src && poetry run zappa update dev -s ../zappa_settings.json && cd ..
-      - run: cd src && poetry run zappa update production -s ../zappa_settings.json && cd ..
+      - uses: actions/download-artifact@v2
+        with:
+          name: dev_package
+          path: dev_package.zip
+      - run: poetry run zappa update dev -zip dev_package.zip
+      - uses: actions/download-artifact@v2
+        with:
+          name: production_package
+          path: production_package.zip
+      - run: poetry run zappa update production -zip production_package.zip
         if: |
           github.event_name == 'push' ||
           github.event_name == 'schedule'
+  release:
+    # if: github.event_name == 'push'
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+      - uses: actions/download-artifact@v2
+        with:
+          name: production_package
+          path: production_package.zip
+      - name: get-npm-version
+        id: package-version
+        run: |
+          VERSION=$(python -c "import pkg_resources; print('.'.join(pkg_resources.get_distribution('service-template').version.split('.')[0:2]))")
+          VERSION+=".${{ github.run_number }}"
+          echo "package-version=$(echo $VERSION)" >> $GITHUB_OUTPUT
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "production_package.zip"
+          name: Release ${{ steps.package-version.outputs.package-version }}
+          tag: v${{ steps.package-version.outputs.package-version }}
