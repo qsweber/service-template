@@ -27,7 +27,7 @@ jobs:
       - run: poetry run flake8
       - run: poetry run mypy src/service_template --strict --txt-report .mypy && cat .mypy/index.txt
       - run: sh check_contains_template.sh
-  build:
+  build_dev:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -39,13 +39,8 @@ jobs:
         with:
           name: dev_package
           path: dev_package.zip
-      - run: cd src && poetry run zappa package production -s ../zappa_settings.json -o ../production_package.zip && cd ..
-      - uses: actions/upload-artifact@v2
-        with:
-          name: production_package
-          path: production_package.zip
-  deploy:
-    needs: [test, build]
+  deploy_dev:
+    needs: [test, build_dev]
     runs-on: ubuntu-latest
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -59,34 +54,20 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: dev_package
+          path: dev_package # auto unzips :(
       - run: zip -r dev_package.zip dev_package
       - run: poetry run zappa update dev --zip dev_package.zip
-      - uses: actions/download-artifact@v2
-        if: |
-          github.event_name == 'push' ||
-          github.event_name == 'schedule'
-        with:
-          name: production_package
-          path: production_package.zip
-      - run: zip -r production_package.zip production_package
-        if: |
-          github.event_name == 'push' ||
-          github.event_name == 'schedule'
-      - run: poetry run zappa update production --zip production_package.zip
-        if: |
-          github.event_name == 'push' ||
-          github.event_name == 'schedule'
   release:
-    # if: github.event_name == 'push'
-    needs: [deploy]
+    needs: [deploy_dev]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
       - uses: actions/download-artifact@v2
         with:
-          name: production_package
-          path: production_package.zip
+          name: dev_package
+          path: dev_package # auto unzips :(
+      - run: zip -r dev_package.zip dev_package
       - name: get-npm-version
         id: package-version
         run: |
@@ -95,6 +76,6 @@ jobs:
           echo "package-version=$(echo $VERSION)" >> $GITHUB_OUTPUT
       - uses: ncipollo/release-action@v1
         with:
-          artifacts: "production_package.zip"
+          artifacts: "dev_package.zip"
           name: Release ${{ steps.package-version.outputs.package-version }}
           tag: v${{ steps.package-version.outputs.package-version }}
