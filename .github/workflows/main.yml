@@ -60,12 +60,12 @@ jobs:
         with:
           name: dev_package
           path: dev_package.zip
-      - run: poetry run zappa update dev -zip dev_package.zip
+      - run: poetry run zappa update dev --zip dev_package.zip
       - uses: actions/download-artifact@v2
         with:
           name: production_package
           path: production_package.zip
-      - run: poetry run zappa update production -zip production_package.zip
+      - run: poetry run zappa update production --zip production_package.zip
         if: |
           github.event_name == 'push' ||
           github.event_name == 'schedule'
