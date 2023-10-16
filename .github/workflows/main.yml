@@ -54,9 +54,6 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: dev_package
-          # path: dev_package.zip # auto unzips :(
-      - run: ls -al dev_package.zip
-      # - run: zip -r dev_package_2.zip dev_package.zip
       - run: poetry run zappa update dev --zip dev_package.zip -s zappa_settings.json
   release:
     needs: [deploy_dev]
@@ -64,11 +61,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
+      - uses: snok/install-poetry@v1
+      - run: poetry install --only main
       - uses: actions/download-artifact@v2
         with:
           name: dev_package
-          path: dev_package # auto unzips :(
-      - run: zip -r dev_package.zip dev_package
       - name: get-npm-version
         id: package-version
         run: |
