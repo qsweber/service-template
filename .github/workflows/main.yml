@@ -69,7 +69,7 @@ jobs:
       - name: get-npm-version
         id: package-version
         run: |
-          VERSION=$(python -c "import pkg_resources; print('.'.join(pkg_resources.get_distribution('service-template').version.split('.')[0:2]))")
+          VERSION=$(poetry run python -c "import pkg_resources; print('.'.join(pkg_resources.get_distribution('service-template').version.split('.')[0:2]))")
           VERSION+=".${{ github.run_number }}"
           echo "package-version=$(echo $VERSION)" >> $GITHUB_OUTPUT
       - uses: ncipollo/release-action@v1
