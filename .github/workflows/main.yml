@@ -25,6 +25,7 @@ jobs:
       - run: poetry run black --check .
       - run: poetry run isort --check .
       - run: poetry run flake8
+      - run: poetry run pylint .
       - run: poetry run mypy src/service_template --strict --txt-report .mypy && cat .mypy/index.txt
       - run: sh check_contains_template.sh
   build:

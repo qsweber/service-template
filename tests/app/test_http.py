@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-import service_template.app.http as module
+import service_template.app.http as module  # type: ignore
 
 
 @pytest.fixture
